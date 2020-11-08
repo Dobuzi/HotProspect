@@ -5,7 +5,24 @@
 //  Created by 김종원 on 2020/11/08.
 //
 
+import UserNotifications
 import SwiftUI
+
+class DelayedUpdater: ObservableObject {
+    var value = 0 {
+        willSet {
+            objectWillChange.send()
+        }
+    }
+    
+    init() {
+        for i in 1...10 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i)) {
+                self.value += 1
+            }
+        }
+    }
+}
 
 class User: ObservableObject {
     @Published var name = "Taylor Swift"
@@ -33,16 +50,43 @@ struct ContentView: View {
     
     @State private var appleData = ""
     @State private var selectedTab = 0
+    @State private var backgroundColor = Color.red
+    
+    @ObservedObject var updater = DelayedUpdater()
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            VStack {
-                EditView()
-                DisplayView()
-            }
-            .onTapGesture(count: 1, perform: {
-                self.selectedTab = 1
-            })
+            Image("example")
+                .interpolation(.none)
+                .resizable()
+                .scaledToFit()
+                .padding()
+                .frame(width: 200)
+                .background(backgroundColor)
+                .ignoresSafeArea()
+                .contextMenu {
+                    Button(action: {
+                        withAnimation {
+                            self.backgroundColor = .red
+                        }
+                    }, label: {
+                        Label("RED", systemImage: self.backgroundColor == .red ? "checkmark.circle.fill" : "")
+                    })
+                    Button(action: {
+                        withAnimation {
+                            self.backgroundColor = .green
+                        }
+                    }, label: {
+                        Label("GREEN", systemImage: self.backgroundColor == .green ? "checkmark.circle.fill" : "")
+                    })
+                    Button(action: {
+                        withAnimation {
+                            self.backgroundColor = .blue
+                        }
+                    }, label: {
+                        Label("BLUE", systemImage: self.backgroundColor == .blue ? "checkmark.circle.fill" : "")
+                    })
+                }
             .tabItem {
                 Label("One", systemImage: "star")
             }
