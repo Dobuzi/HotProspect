@@ -11,15 +11,19 @@ class Prospect: Identifiable, Codable {
     var id = UUID()
     var name = "Anonymous"
     var emailAddress = ""
+    var enrollDate = Date()
     fileprivate(set) var isContacted = false
 }
 
 class Prospects: ObservableObject {
     @Published private(set) var people: [Prospect]
     static let saveKey = "SavedData"
-    
+    static var filename: URL {
+        let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        return path.appendingPathComponent(Self.saveKey)
+    }
     init() {
-        if let data = UserDefaults.standard.data(forKey: Self.saveKey) {
+        if let data = try? Data(contentsOf: Self.filename) {
             if let decoded = try? JSONDecoder().decode([Prospect].self, from: data) {
                 self.people = decoded
                 return
@@ -36,8 +40,11 @@ class Prospects: ObservableObject {
     }
     
     private func save() {
-        if let encoded = try? JSONEncoder().encode(people) {
-            UserDefaults.standard.set(encoded, forKey: Self.saveKey)
+        do {
+            let encoded = try? JSONEncoder().encode(people)
+            try encoded?.write(to: Self.filename, options: [.atomicWrite, .completeFileProtection])
+        } catch {
+            print("Unable to save data.")
         }
     }
     
@@ -45,4 +52,5 @@ class Prospects: ObservableObject {
         people.append(prospect)
         save()
     }
+
 }

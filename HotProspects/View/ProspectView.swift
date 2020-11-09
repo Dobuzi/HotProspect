@@ -13,10 +13,16 @@ enum FilterType {
     case none, contacted, uncontacted
 }
 
+enum SortingType {
+    case none, name, emailAddress, mostRecent
+}
+
 struct ProspectView: View {
     @State private var isShowingScanner = false
+    @State private var showingActionSheet = false
     @EnvironmentObject var prospects: Prospects
     let filter: FilterType
+    @State var sortingCondition: SortingType = .none
     var filteredProspects: [Prospect] {
         switch filter {
         case .none:
@@ -25,6 +31,24 @@ struct ProspectView: View {
             return prospects.people.filter { $0.isContacted }
         case .uncontacted:
             return prospects.people.filter { !$0.isContacted }
+        }
+    }
+    var sortedProspects: [Prospect] {
+        switch sortingCondition {
+        case .none:
+            return filteredProspects
+        case .name:
+            return filteredProspects.sorted(by: { lhs, rhs in
+                lhs.name < rhs.name
+            })
+        case .emailAddress:
+            return filteredProspects.sorted(by: { lhs, rhs in
+                lhs.emailAddress < rhs.emailAddress
+            })
+        case .mostRecent:
+            return filteredProspects.sorted(by: { lhs, rhs in
+                lhs.enrollDate > rhs.enrollDate
+            })
         }
     }
     
@@ -38,10 +62,11 @@ struct ProspectView: View {
             return "Uncontacted people"
         }
     }
+    
     var body: some View {
         NavigationView {
             List {
-                ForEach(filteredProspects) { prospect in
+                ForEach(sortedProspects) { prospect in
                     HStack {
                         VStack(alignment: .leading) {
                             Text(prospect.name)
@@ -68,15 +93,33 @@ struct ProspectView: View {
                 }
             }
             .navigationBarTitle(title)
-            .navigationBarItems(trailing: Button(action: {
+            .navigationBarItems(leading: Button(action: {
+                self.showingActionSheet = true
+            }) {
+                Label("Sort", systemImage: "arrow.up.arrow.down.square")
+            }, trailing: Button(action: {
                 self.isShowingScanner = true
-            }, label: {
+            }) {
                 Label("Scan", systemImage: "qrcode.viewfinder")
-            }))
+            })
             .sheet(isPresented: $isShowingScanner) {
                 CodeScannerView(codeTypes: [.qr],
                                 simulatedData: "Dobuzi\ndobuji@kakao.com",
                                 completion: self.handleScan)
+            }
+            .actionSheet(isPresented: $showingActionSheet) {
+                ActionSheet(title: Text("Sorting conditions"), buttons: [
+                    .default(Text("Name"), action: {
+                        sortingCondition = .name
+                    }),
+                    .default(Text("Email Address"), action: {
+                        sortingCondition = .emailAddress
+                    }),
+                    .default(Text("Most Recent"), action: {
+                        sortingCondition = .mostRecent
+                    }),
+                    .cancel()
+                ])
             }
         }
     }
@@ -94,6 +137,12 @@ struct ProspectView: View {
             
             self.prospects.add(person)
         case .failure(let error):
+            switch error {
+            case .badInput:
+                print("bad input")
+            case .badOutput:
+                print("bad output")
+            }
             print("Scanning failed")
         }
     }
